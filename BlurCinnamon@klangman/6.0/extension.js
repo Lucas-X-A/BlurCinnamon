@@ -43,7 +43,14 @@ const WindowMenu      = imports.ui.windowMenu;
 const Cinnamon        = imports.gi.Cinnamon;
 const DeskletManager  = imports.ui.deskletManager;
 const OsdWindow       = imports.ui.osdWindow;
-const WorkspaceOsd    = imports.ui.workspaceOsd;
+
+try {
+   var WorkspaceOsd    = imports.ui.workspaceOsd;
+   var usesWorkspaceOsd = true;
+} catch(e) {
+   var  ModalDialog = imports.ui.modalDialog;
+   var usesWorkspaceOsd = false;
+}
 
 // For PopupMenu effects
 const Applet    = imports.ui.applet;
@@ -1119,8 +1126,10 @@ class BlurBase {
       }
    }
 
-   _setClip(actor, marginsActor=null) {
+   _setClip(actor, background, marginsActor=null) {
+      //printStackTrace("setClip");
       //this._printActor(actor);
+      let cornerEffect = this._getCornerEffect(background);
       if (marginsActor) {
          let themeNode = marginsActor.get_theme_node();
          let left   = themeNode.get_margin(St.Side.LEFT)   //+ themeNode.get_padding(St.Side.LEFT);
@@ -1128,12 +1137,18 @@ class BlurBase {
          let top    = themeNode.get_margin(St.Side.TOP)    //+ themeNode.get_padding(St.Side.TOP);
          let bottom = themeNode.get_margin(St.Side.BOTTOM) //+ themeNode.get_padding(St.Side.BOTTOM);
          //log( `Margins: ${left}, ${right}, ${top}, ${bottom}` );
-         this._background.set_clip( actor.x+left, actor.y+top, actor.width-(left+right), actor.height-(top+bottom) );
+         if (cornerEffect)
+            cornerEffect.clip = [actor.x+left+2, actor.y+top+2, actor.width-(left+right)-3, actor.height-(top+bottom)-3];
+         else
+            this._background.set_clip( actor.x+left, actor.y+top, actor.width-(left+right), actor.height-(top+bottom) );
       } else {
-         this._background.set_clip( actor.x, actor.y, actor.width, actor.height );
+         if (cornerEffect)
+            cornerEffect.clip = [actor.x+2, actor.y+2, actor.width-3, actor.height-3];
+         else
+            this._background.set_clip( actor.x, actor.y, actor.width, actor.height );
       }
       if (cloneManager)
-         cloneManager.backgroundClipChanged(this._background);
+         cloneManager.backgroundClipChanged(background);
    }
 
    destroy(background) {
@@ -1176,10 +1191,17 @@ class BlurOSD extends BlurBase {
       OsdWindow.OsdWindow.prototype.show = this._show;
       OsdWindow.OsdWindow.prototype._hide = this._hide;
 
-      this.original_display = WorkspaceOsd.WorkspaceOsd.prototype.display;
-      this.original_onTimeout = WorkspaceOsd.WorkspaceOsd.prototype._onTimeout;
-      WorkspaceOsd.WorkspaceOsd.prototype.display = this._display;
-      WorkspaceOsd.WorkspaceOsd.prototype._onTimeout = this._onTimeout;
+      if (usesWorkspaceOsd) {
+         this.original_display = WorkspaceOsd.WorkspaceOsd.prototype.display;
+         this.original_onTimeout = WorkspaceOsd.WorkspaceOsd.prototype._onTimeout;
+         WorkspaceOsd.WorkspaceOsd.prototype.display = this._display;
+         WorkspaceOsd.WorkspaceOsd.prototype._onTimeout = this._onTimeout;
+      } else {
+         this.original_infoOSD_show = ModalDialog.InfoOSD.prototype.show;
+         this.original_infoOSD_hide = ModalDialog.InfoOSD.prototype.hide;
+         ModalDialog.InfoOSD.prototype.show = this._infoOSD_show;
+         ModalDialog.InfoOSD.prototype.hide = this._infoOSD_hide;
+      }
    }
 
    _supportsDynamicBlur() {
@@ -1206,12 +1228,20 @@ class BlurOSD extends BlurBase {
       }
    }
 
+   _infoOSD_show(...params) {
+      blurOSDThis.original_infoOSD_show.call(this, ...params);
+      if (settings.osdWorkspaceEffects) {
+         blurOSDThis._showBackground.call(blurOSDThis, this.actor, this.actor.get_first_child());
+      }
+   }
+
    _showBackground(osd, actor) {
       if (actor && !osd._blurCinnamonBackground) {
          if (this._background) {
-            this._hideBackground(this._currentOsd);
+            this._hideBackground(this._currentOsd, this._currentActor);
          }
-         this._currentOsd = osd
+         this._currentOsd = osd;
+         this._currentActor = actor;
          if (!actor._blurCinnamonData && settings.allowTransparentColorOSD) {
             actor._blurCinnamonData = { original_color: actor.get_background_color(), original_style: actor.get_style(),
                                       original_class: actor.get_style_class_name(), original_pseudo_class: actor.get_style_pseudo_class() };
@@ -1265,6 +1295,11 @@ class BlurOSD extends BlurBase {
       blurOSDThis.original_onTimeout.call(this, ...params);
    }
 
+   _infoOSD_hide(...params) {
+      blurOSDThis._hideBackground.call(blurOSDThis, this.actor, this.actor.get_first_child());
+      blurOSDThis.original_infoOSD_hide.call(this, ...params);
+   }
+
    _hideBackground(osd, actor) {
       if (!this._background) return;
       if (this._blurType === BlurType.DynamicBlur || this._blurType === BlurType.DynamicMC) {
@@ -1303,8 +1338,14 @@ class BlurOSD extends BlurBase {
       OsdWindow.OsdWindow.prototype.show = this.original_show;
       OsdWindow.OsdWindow.prototype._hide = this.original_hide;
 
-      WorkspaceOsd.WorkspaceOsd.prototype.display = this.original_display;
-      WorkspaceOsd.WorkspaceOsd.prototype._onTimeout = this.original_onTimeout;
+      if (usesWorkspaceOsd) {
+         WorkspaceOsd.WorkspaceOsd.prototype.display = this.original_display;
+         WorkspaceOsd.WorkspaceOsd.prototype._onTimeout = this.original_onTimeout;
+      } else {
+         ModalDialog.InfoOSD.prototype.show = this.original_infoOSD_show;
+         ModalDialog.InfoOSD.prototype.hide = this.original_infoOSD_hide;
+
+      }
 
       if (this._background) {
          global.overlay_group.remove_actor(this._background);
@@ -1346,7 +1387,6 @@ class BlurClassicSwitcher extends BlurBase {
    _showBackground(switcher) {
       let actor = switcher._appList.actor;
       if (actor) {
-         // -------------------- TODO: Make this an option for people with themes that are already transparent -------------------
          if (settings.allowTransparentColorSwitcher) {
             actor.set_style( "background-gradient-direction: vertical; background-gradient-start: transparent; " +
                              "background-gradient-end: transparent; background: transparent;" );
@@ -1393,6 +1433,18 @@ class BlurClassicSwitcher extends BlurBase {
       global.overlay_group.remove_actor(this._background);
       super.destroy(this._background);
       this._background.destroy();
+   }
+
+   _setClip(actor) {
+      let [x,y] = actor.get_transformed_position();
+      let cornerEffect = this._getCornerEffect(this._background);
+      if (cornerEffect) {
+         cornerEffect.clip = [x+2, y+2, actor.width-3, actor.height-3];
+      } else {
+         this._background.set_clip(x, y, actor.width, actor.height );
+         if (cloneManager)
+            cloneManager.backgroundClipChanged(this._background);
+      }
    }
 
    destroy() {
@@ -2544,7 +2596,7 @@ class BlurNotifications extends BlurBase {
             button.set_style( this._activeNotificationData.original_button_style );
             table.set_style( this._activeNotificationData.original_table_style );
          }
-         this._setClip(actor, table);
+         this._setClip(actor, this._background, table);
          if ((this._blurType === BlurType.DynamicBlur || this._blurType === BlurType.DynamicMC) && !this._isDynamicEffectActive(this._background)) {
             this._createDynamicEffect(this._background);
          }
@@ -2578,7 +2630,7 @@ class BlurNotifications extends BlurBase {
          if (themeNode) {
             // We are assuming that all corners have the same radius, hope that is true.
             let radius = themeNode.get_border_radius(St.Corner.TOPLEFT);
-            this._updateCornerRadius(this._background, (radius+6)/global.ui_scale);
+            this._updateCornerRadius(this._background, (radius/*+6*/)/global.ui_scale);
          }
          if (settings.allowTransparentColorNotifications) {
             // Save the current settings so we can restore it if need be.
@@ -2594,13 +2646,13 @@ class BlurNotifications extends BlurBase {
          }
       }
       // Resize the background to match the size of the notification window
-      this._setClip(actor, table);
+      this._setClip(actor, this._background, table);
       // If Dynamic Blurring is enabled, create a workspace clone and add the clone to the background
       if (this._blurType === BlurType.DynamicBlur || this._blurType === BlurType.DynamicMC) {
          this._createDynamicEffect(this._background);
       }
       // The notification window size can change after being shown, so we need to adjust the background when that happens
-      this._signalManager.connect(actor, "notify::allocation", () => this._setClip(actor, table) );
+      this._signalManager.connect(actor, "notify::allocation", () => this._setClip(actor, this._background, table) );
       if (!showFullscreenNotifications) {
          this._signalManager.connect(global.display, "in-fullscreen-changed", this._fullscreen_changed, this);
       }
@@ -2698,7 +2750,7 @@ class BlurTooltips extends BlurBase {
       // Track the showing tooltip actor so we know which hide call to react to
       this._tooltipActor = actor;
       // Clip the background subtracting the actors margins since in some cases not doing so makes the background too large
-      this._setClip(actor, actor);
+      this._setClip(actor, this._background, actor);
       this._background.show();
       // If Dynamic Blurring is enabled, create a workspace clone and add the clone to the background
       if ((blurType === BlurType.DynamicBlur || blurType === BlurType.DynamicMC) && !this._isDynamicEffectActive(this._background)) {
@@ -2706,13 +2758,13 @@ class BlurTooltips extends BlurBase {
       }
       // Adapt to any future tooltip size changes
       //this._signalManager.connect(actor, 'notify::size', () => {this._setClip(actor);} );
-      this._signalManager.connect(actor, "notify::allocation", () => this._setClip(actor) );
+      this._signalManager.connect(actor, "notify::allocation", () => this._setClip(actor, this._background) );
 
       // When idle, make sure the clip is set right, sometimes it's wrong on the outset
       Mainloop.idle_add( () => {
-         this._setClip(actor);
+         this._setClip(actor, this._background);
          // Try one more time
-         Mainloop.idle_add( () => {this._setClip(actor);} );
+         Mainloop.idle_add( () => {this._setClip(actor, this._background);} );
          });
    }
 
@@ -3348,7 +3400,10 @@ class BlurDesklets extends BlurBase {
          } else {
             background.set_clip( actor.x, actor.y, actor.width, actor.height );
          }
+         if (cloneManager)
+            cloneManager.backgroundClipChanged(background);
       }
+
    }
 
    updateEffects() {
