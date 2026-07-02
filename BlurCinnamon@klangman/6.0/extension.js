@@ -348,7 +348,7 @@ function clonePainted(background, actor) {
 }
 
 function createWindowClone(metaWindow, background, desktopOnly) {
-   if (background.is_mapped() && background._blurCinnamonMetaWindowOwner !== metaWindow && (!desktopOnly || metaWindow.get_window_type() === Meta.WindowType.DESKTOP) &&
+   if (/*background.is_mapped() &&*/ background._blurCinnamonMetaWindowOwner !== metaWindow && (!desktopOnly || metaWindow.get_window_type() === Meta.WindowType.DESKTOP) &&
       (!background._blurCinnamonMetaWindowOwner || background._blurCinnamonMetaWindowOwner.get_window_type() !== Meta.WindowType.DESKTOP || metaWindow.get_window_type() === Meta.WindowType.DESKTOP) ) {
       // Debugging check
       if( background._blurCinnamonWinClones.find( (element) => element._metaWindow === metaWindow) ) {
@@ -464,8 +464,8 @@ function cloneWindowsForBackground(background, desktopOnly) {
 function cloneWindowsForBackgroundNow(background, desktopOnly) {
    let currentWs = global.workspace_manager.get_active_workspace_index();
    let [blurX, blurY, blurWidth, blurHeight] = getBackgroundClip(background);
-   if (blurWidth===0 || blurHeight===0 || !background.is_mapped()) {
-      debugMsg( `Blurred background is zero size or unmapped` );
+   if (blurWidth===0 || blurHeight===0 /*|| !background.is_mapped()*/) {
+      debugMsg( `Blurred background is zero size or unmapped: width ${blurWidth}  height ${blurHeight}  mapped ${background.is_mapped()}` );
       return;
    }
    let blurX2 = blurX + blurWidth;
@@ -1398,11 +1398,6 @@ class BlurClassicSwitcher extends BlurBase {
          this._background = this._createBackgroundAndEffects(opacity, blendColor, blurType, radius, saturation, global.overlay_group, 10);
          this._background._blurCinnamonName = "ClassicSwitcher";
 
-         // If Dynamic Blurring is enabled, create a workspace clone and add the clone to the background
-         if (blurType === BlurType.DynamicBlur || blurType === BlurType.DynamicMC) {
-            debugMsg( "Creating dynamic effect for classic app switcher" );
-            this._createDynamicEffect(this._background);
-         }
          let themeNode = actor.get_theme_node();
          if (themeNode) {
             // We are assuming that all corners have the same radius, hope that is true.
@@ -1411,8 +1406,13 @@ class BlurClassicSwitcher extends BlurBase {
          }
          this._signalManager.connect(actor, "notify::allocation", () => this._setClip(actor) );
 
-         this._background.show();
          this._setClip(actor)
+         // If Dynamic Blurring is enabled, create a workspace clone and add the clone to the background
+         if (blurType === BlurType.DynamicBlur || blurType === BlurType.DynamicMC) {
+            debugMsg( "Creating dynamic effect for classic app switcher" );
+            this._createDynamicEffect(this._background);
+         }
+         this._background.show();
       }
    }
 
@@ -3873,7 +3873,7 @@ function enableOSDChanged() {
       blurOSD.destroy();
       blurOSD = null;
    } else if (!blurOSD && settings.enableOSDEffects) {
-      blurOSD = new BlurOSD();
+      //blurOSD = new BlurOSD();
    }
 }
 
@@ -3917,7 +3917,7 @@ function enable() {
 
    // Create a OsdWindow Effects class instance, the constructor will kick things off
    if (settings.enableOSDEffects) {
-      blurOSD = new BlurOSD();
+      //blurOSD = new BlurOSD();
    }
    // Create a Classic Switcher Effects class instance, the constructor will kick things off
    if (settings.enableAppswitcherEffects && settings.appswitcherAllowClassic) {
