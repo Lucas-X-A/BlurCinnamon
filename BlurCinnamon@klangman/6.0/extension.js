@@ -1407,7 +1407,7 @@ class BlurClassicSwitcher extends BlurBase {
          if (themeNode) {
             // We are assuming that all corners have the same radius, hope that is true.
             let radius = themeNode.get_border_radius(St.Corner.TOPLEFT);
-            this._updateCornerRadius(this._background, (radius+6)/global.ui_scale);
+            this._updateCornerRadius(this._background, (radius/*+6*/)/global.ui_scale);
          }
          this._signalManager.connect(actor, "notify::allocation", () => this._setClip(actor) );
 
@@ -2582,7 +2582,7 @@ class BlurNotifications extends BlurBase {
          if (themeNode) {
             // We are assuming that all corners have the same radius, hope that is true.
             let radius = themeNode.get_border_radius(St.Corner.TOPLEFT);
-            this._updateCornerRadius(this._background, (radius+6)/global.ui_scale);
+            this._updateCornerRadius(this._background, (radius/*+6*/)/global.ui_scale);
          }
          if (settings.allowTransparentColorNotifications) {
             actor.set_style( /*"border-radius: 0px;*/ "background-gradient-direction: vertical; background-gradient-start: transparent; " +
@@ -2740,7 +2740,7 @@ class BlurTooltips extends BlurBase {
       if (themeNode) {
          // We are assuming that all corners have the same radius, hope that is true.
          let radius = themeNode.get_border_radius(St.Corner.TOPLEFT);
-         this._updateCornerRadius(this._background, (radius+6)/global.ui_scale);
+         this._updateCornerRadius(this._background, (radius/*+6*/)/global.ui_scale);
       }
 
       if (settings.allowTransparentColorTooltips) {
