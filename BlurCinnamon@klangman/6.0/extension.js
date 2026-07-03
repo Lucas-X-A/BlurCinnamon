@@ -348,7 +348,7 @@ function clonePainted(background, actor) {
 }
 
 function createWindowClone(metaWindow, background, desktopOnly) {
-   if (/*background.is_mapped() &&*/ background._blurCinnamonMetaWindowOwner !== metaWindow && (!desktopOnly || metaWindow.get_window_type() === Meta.WindowType.DESKTOP) &&
+   if (background.is_mapped() && background._blurCinnamonMetaWindowOwner !== metaWindow && (!desktopOnly || metaWindow.get_window_type() === Meta.WindowType.DESKTOP) &&
       (!background._blurCinnamonMetaWindowOwner || background._blurCinnamonMetaWindowOwner.get_window_type() !== Meta.WindowType.DESKTOP || metaWindow.get_window_type() === Meta.WindowType.DESKTOP) ) {
       // Debugging check
       if( background._blurCinnamonWinClones.find( (element) => element._metaWindow === metaWindow) ) {
@@ -464,7 +464,7 @@ function cloneWindowsForBackground(background, desktopOnly) {
 function cloneWindowsForBackgroundNow(background, desktopOnly) {
    let currentWs = global.workspace_manager.get_active_workspace_index();
    let [blurX, blurY, blurWidth, blurHeight] = getBackgroundClip(background);
-   if (blurWidth===0 || blurHeight===0 /*|| !background.is_mapped()*/) {
+   if (blurWidth===0 || blurHeight===0 || !background.is_mapped()) {
       debugMsg( `Blurred background is zero size or unmapped: width ${blurWidth}  height ${blurHeight}  mapped ${background.is_mapped()}` );
       return;
    }
@@ -673,7 +673,7 @@ class CloneManager {
       }
       debugMsg( `Background ${(background.mapped)?"mapped":"unmapped"} for ${background._blurCinnamonName}` );
       if (background.mapped === true) {
-         cloneWindowsForBackground(background, background._blurCinnamonDesktopOnly);
+         cloneWindowsForBackgroundNow(background, background._blurCinnamonDesktopOnly);
       } else {
          // An unmapped background can still be visible when a clone is shows (i.e Alt-Tab)
          destroyAllWindowsClones(background);
