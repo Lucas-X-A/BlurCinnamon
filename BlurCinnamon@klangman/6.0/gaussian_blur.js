@@ -229,7 +229,7 @@ const GaussianBlurEffect =
                         if (current_actor) current_actor.remove_effect(this.chained_effect);
                     } catch (e) {}
                     
-                    this.chained_effect = null; // Zera a referência!
+                    this.chained_effect = null; 
                 }
 
                 // If there is a valid actor, recreate the effect and add it
