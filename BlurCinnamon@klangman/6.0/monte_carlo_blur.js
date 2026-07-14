@@ -121,12 +121,7 @@ const MonteCarloBlurEffect =
                 this.set_shader_source(this._source);
 
             const theme_context = St.ThemeContext.get_for_stage(global.stage);
-            theme_context.connect(
-                'notify::scale-factor',
-                _ => this.set_uniform_value('radius',
-                    parseFloat(this._radius * theme_context.scale_factor - 1e-6)
-                )
-            );
+            this.set_uniform_value('radius', parseFloat(this._radius * theme_context.scale_factor - 1e-6));
         }
 
         get_shader_source(shader_filename) {

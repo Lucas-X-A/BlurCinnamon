@@ -102,9 +102,8 @@ var CornerEffect = (typeof global === 'undefined') ?
             if (this._source)
                 this.set_shader_source(this._source);
 
-            //TODO: Get this code working in Cinnamon
-            //const theme_context = St.ThemeContext.get_for_stage(global.stage);
-            //theme_context.connectObject('notify::scale-factor', _ => this.update_radius(), this);
+            // Safe fetch of the current scale factor 
+            this.update_radius();
         }
 
         static get default_params() {

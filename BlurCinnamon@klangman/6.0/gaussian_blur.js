@@ -108,11 +108,8 @@ const GaussianBlurEffect =
                 this.set_shader_source(this._source);
 
             const theme_context = St.ThemeContext.get_for_stage(global.stage);
-            theme_context.connect(
-                'notify::scale-factor', () => {
-                this.set_uniform_value('sigma', parseFloat(this.radius * theme_context.scale_factor / 2 - 1e-6) );
-                }
-            );
+            this.set_uniform_value('sigma', parseFloat(this.radius * theme_context.scale_factor / 2 - 1e-6));
+            this.set_enabled(this.radius > 0.);
         }
 
         get_shader_source(shader_filename) {
@@ -225,9 +222,18 @@ const GaussianBlurEffect =
             super.vfunc_set_actor(actor);
 
             if (this.direction == 0) {
-                if (this.chained_effect)
-                    this.chained_effect.get_actor()?.remove_effect(this.chained_effect);
-                else
+                // Clear the old effect, if it exists
+                if (this.chained_effect) {
+                    try {
+                        let current_actor = this.chained_effect.get_actor();
+                        if (current_actor) current_actor.remove_effect(this.chained_effect);
+                    } catch (e) {}
+                    
+                    this.chained_effect = null; // Zera a referência!
+                }
+
+                // If there is a valid actor, recreate the effect and add it
+                if (actor !== null && actor !== undefined) {
                     this.chained_effect = new GaussianBlurEffect({
                         radius: this.radius,
                         brightness: this.brightness,
@@ -235,8 +241,8 @@ const GaussianBlurEffect =
                         height: this.height,
                         direction: 1
                     });
-                if (actor !== null)
                     actor.add_effect(this.chained_effect);
+                }
             }
         }
 
