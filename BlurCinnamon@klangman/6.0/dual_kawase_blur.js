@@ -96,12 +96,13 @@ var DualFilteringBlurEffect =
             this.height = params?.height ?? 0;
             this.chained_effect = params?.chained_effect ?? null;
 
+            // Fetches the scale factor safely
             const theme_context = St.ThemeContext.get_for_stage(global.stage);
-            this._scale_signal = theme_context.connect('notify::scale-factor', () => {
-                this._update_uniforms(theme_context.scale_factor);
-            });
-            
             this._update_uniforms(theme_context.scale_factor);
+            this.set_enabled(this.radius > 0.);
+            this.set_uniform_value('brightness', parseFloat(this.brightness - 1e-6));
+            this.set_uniform_value('width', parseFloat(this.width + 3.0 - 1e-6));
+            this.set_uniform_value('height', parseFloat(this.height + 3.0 - 1e-6));
         }
 
         get_shader_source(shader_filename) {
@@ -121,12 +122,14 @@ var DualFilteringBlurEffect =
         set radius(value) {
             if (this._radius !== value) {
                 this._radius = value;
-                const scale_factor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-                this._update_uniforms(scale_factor);
-                this.set_enabled(this.radius > 0.);
                 
-                // Updates all effects in the chain with the new radius value
-                this._sub_effects.forEach(effect => { effect.radius = value; });
+                if (this._sub_effects) {
+                    const scale_factor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+                    this._update_uniforms(scale_factor);
+                    this.set_enabled(this.radius > 0.);
+                    
+                    this._sub_effects.forEach(effect => { effect.radius = value; });
+                }
             }
         }
 
@@ -137,8 +140,11 @@ var DualFilteringBlurEffect =
         set brightness(value) {
             if (this._brightness !== value) {
                 this._brightness = value;
-                this.set_uniform_value('brightness', parseFloat(this._brightness - 1e-6));
-                this._sub_effects.forEach(effect => { effect.brightness = value; });
+                
+                if (this._sub_effects) {
+                    this.set_uniform_value('brightness', parseFloat(this._brightness - 1e-6));
+                    this._sub_effects.forEach(effect => { effect.brightness = value; });
+                }
             }
         }
 
@@ -149,8 +155,11 @@ var DualFilteringBlurEffect =
         set width(value) {
             if (this._width !== value) {
                 this._width = value;
-                this.set_uniform_value('width', parseFloat(this._width + 3.0 - 1e-6));
-                this._sub_effects.forEach(effect => { effect.width = value; });
+                
+                if (this._sub_effects) {
+                    this.set_uniform_value('width', parseFloat(this._width + 3.0 - 1e-6));
+                    this._sub_effects.forEach(effect => { effect.width = value; });
+                }
             }
         }
 
@@ -161,8 +170,11 @@ var DualFilteringBlurEffect =
         set height(value) {
             if (this._height !== value) {
                 this._height = value;
-                this.set_uniform_value('height', parseFloat(this._height + 3.0 - 1e-6));
-                this._sub_effects.forEach(effect => { effect.height = value; });
+                
+                if (this._sub_effects) {
+                    this.set_uniform_value('height', parseFloat(this._height + 3.0 - 1e-6));
+                    this._sub_effects.forEach(effect => { effect.height = value; });
+                }
             }
         }
 
@@ -191,8 +203,9 @@ var DualFilteringBlurEffect =
         }
 
         _update_uniforms(scale_factor) {
-            let clamped_radius = Math.min(this.radius, 40.0); 
-            let base_offset = 1.0 + (clamped_radius * 0.05); 
+            // Treat the UI radius as an intensity percentage 
+            let effective_radius = Math.min(this.radius, 100.0); 
+            let base_offset = 1.0 + (effective_radius * 0.02); 
             
             // Calculate spatial spread mathematically
             let midpoint = Math.floor(this.total_passes / 2);
@@ -230,19 +243,22 @@ var DualFilteringBlurEffect =
             super.vfunc_set_actor(actor);
 
             if (this.pass_index === 0) {
-                this._sub_effects.forEach(effect => {
-                    try {
-                        let current_actor = effect.get_actor();
-                        if (current_actor) current_actor.remove_effect(effect);
-                    } catch (e) {
-                        // Ignores silently if the actor has already been cleaned up by the Cinnamon engine
-                    }
-                });
+                if (this._sub_effects) {
+                    this._sub_effects.forEach(effect => {
+                        try {
+                            let current_actor = effect.get_actor();
+                            if (current_actor) current_actor.remove_effect(effect);
+                        } catch (e) {
+                            // Ignores silently if the actor has already been cleaned up by the Cinnamon engine
+                        }
+                    });
+                }
                 this._sub_effects = [];
 
                 if (actor !== null && actor !== undefined) {
                     let total_depth = 7;
-                  
+
+                    this.total_passes = total_depth;
                     this.chained_effect = this; 
                     
                     for (let i = 1; i < total_depth; i++) {
@@ -263,8 +279,8 @@ var DualFilteringBlurEffect =
         }
           
         vfunc_paint_target(...params) {
-            // Verifies if this pass is the last in the current chain
-            let is_last = (this.pass_index === this._sub_effects.length) ? 1 : 0;
+            // Identifies the last pass in the pyramid to apply final color grading
+            let is_last = (this._sub_effects && this.pass_index === this.total_passes - 1) ? 1 : 0;
             this.set_uniform_value("is_last_pass", is_last);
             super.vfunc_paint_target(...params);
         }
