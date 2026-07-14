@@ -205,7 +205,7 @@ var DualFilteringBlurEffect =
         _update_uniforms(scale_factor) {
             // Treat the UI radius as an intensity percentage 
             let effective_radius = Math.min(this.radius, 100.0); 
-            let base_offset = 1.0 + (effective_radius * 0.02); 
+            let base_offset = 1.0 + (effective_radius * 0.08); 
             
             // Calculate spatial spread mathematically
             let midpoint = Math.floor(this.total_passes / 2);
@@ -216,7 +216,7 @@ var DualFilteringBlurEffect =
                 step_multiplier = Math.pow(2.0, this.pass_index);
             } else {
                 // Upsample: spread decreases as we come back up
-                let up_index = this.total_passes - this.pass_index;
+                let up_index = (this.total_passes - 1) - this.pass_index;
                 step_multiplier = Math.pow(2.0, up_index);
             }
         
