@@ -33,7 +33,7 @@
       "generic-effect-settings" : {
          "type" : "section",
          "title" : "Generic effect settings",
-         "keys" : ["opacity", "blendColor", "blurType", "radius", "saturation"]
+         "keys" : ["opacity", "blendColor", "blurType", "show-blur-info", "blur-info-label", "radius", "saturation"]
       },
 
       "monte-carlo-settings" : {
@@ -468,6 +468,18 @@
         },
         "description": "Type of blur effect",
         "tooltip": "What type of blur algorithm should be used to blur the background"
+    },
+
+    "show-blur-info": {
+        "type": "switch",
+        "default": false,
+        "description": "💡 Show Algorithm Guide (Help)"
+    },
+
+    "blur-info-label": {
+        "type": "label",
+        "description": "Algorithm Guide:\n• Gaussian: High quality, but very heavy on performance (especially Dynamic).\n• Dual Kawase: Same high quality as Gaussian, but heavily optimized. Best for low-end GPUs and Dynamic Blur.\n• Monte Carlo: Grainy, frosted-glass style noise blur.\n• Static vs Dynamic: 'Dynamic' blurs videos and moving windows behind the element in real-time. 'Static' only blurs the wallpaper.",
+        "dependency": "show-blur-info"
     },
 
     "radius": {
