@@ -205,7 +205,7 @@ var DualFilteringBlurEffect =
         _update_uniforms(scale_factor) {
             // Treat the UI radius as an intensity percentage 
             let effective_radius = Math.min(this.radius, 100.0); 
-            let base_offset = 1.0 + (effective_radius * 0.08); 
+            let base_offset = effective_radius * 0.08;
             
             // Calculate spatial spread mathematically
             let midpoint = Math.floor(this.total_passes / 2);
@@ -229,12 +229,22 @@ var DualFilteringBlurEffect =
                 let old_actor = this.get_actor();
                 old_actor?.disconnect(this._actor_connection_size_id);
             }
+          
+            if (this._scale_connection_id) {
+                St.ThemeContext.get_for_stage(global.stage).disconnect(this._scale_connection_id);
+                this._scale_connection_id = null;
+            }
+          
             if (actor) {
                 this.width = actor.width;
                 this.height = actor.height;
                 this._actor_connection_size_id = actor.connect('notify::size', _ => {
                     this.width = actor.width;
                     this.height = actor.height;
+                });
+              
+                this._scale_connection_id = St.ThemeContext.get_for_stage(global.stage).connect('notify::scale-factor', () => {
+                    this._update_uniforms(St.ThemeContext.get_for_stage(global.stage).scale_factor);
                 });
             } else {
                 this._actor_connection_size_id = null;

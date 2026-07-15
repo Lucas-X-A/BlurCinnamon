@@ -202,9 +202,15 @@ var CornerEffect = (typeof global === 'undefined') ?
                 let old_actor = this.get_actor();
                 old_actor?.disconnect(this._actor_connection_size_id);
             }
+          
             if (this._actor_connection_clip_rect_id) {
                 let old_actor = this.get_actor();
                 old_actor?.disconnect(this._actor_connection_clip_rect_id);
+            }
+
+            if (this._scale_connection_id) {
+                St.ThemeContext.get_for_stage(global.stage).disconnect(this._scale_connection_id);
+                this._scale_connection_id = null;
             }
 
             if (actor) {
@@ -219,8 +225,11 @@ var CornerEffect = (typeof global === 'undefined') ?
                 this._actor_connection_clip_rect_id = actor.connect('notify::clip-rect', _ => {
                     this.clip = actor.has_clip ? actor.get_clip() : [0, 0, -10, -10];
                 });
-            }
-            else {
+
+                this._scale_connection_id = St.ThemeContext.get_for_stage(global.stage).connect('notify::scale-factor', () => {
+                    this.update_radius();
+                });
+            } else {
                 this._actor_connection_size_id = null;
                 this._actor_connection_clip_rect_id = null;
             }

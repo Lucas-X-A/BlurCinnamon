@@ -208,6 +208,12 @@ const GaussianBlurEffect =
                 let old_actor = this.get_actor();
                 old_actor?.disconnect(this._actor_connection_size_id);
             }
+
+            if (this._scale_connection_id) {
+                St.ThemeContext.get_for_stage(global.stage).disconnect(this._scale_connection_id);
+                this._scale_connection_id = null;
+            }
+          
             if (actor) {
                 this.width = actor.width;
                 this.height = actor.height;
@@ -215,9 +221,14 @@ const GaussianBlurEffect =
                     this.width = actor.width;
                     this.height = actor.height;
                 });
-            }
-            else
+
+                this._scale_connection_id = St.ThemeContext.get_for_stage(global.stage).connect('notify::scale-factor', () => {
+                    const scale_factor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+                    this.set_uniform_value('sigma', parseFloat(this._radius * scale_factor / 2 - 1e-6));
+                });
+            } else {
                 this._actor_connection_size_id = null;
+            }
 
             super.vfunc_set_actor(actor);
 
